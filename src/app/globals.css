@@ -33,9 +33,7 @@ input, select, textarea, button {
   color: var(--wc-navy);
 }
 
-.wc-main p {
-  color: #4d6072;
-}
+.wc-main p.lead-skip { color: inherit; }
 
 .wc-main input,
 .wc-main select,

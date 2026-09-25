@@ -1,5 +1,6 @@
 import { prisma } from "@/server/database/client";
 import { isSuperAdmin } from "@/server/authentication/guards";
+import { PageHeader, Stat } from "@/components/admin-ui";
 import { requirePageUser } from "../guard";
 
 export const dynamic = "force-dynamic";
@@ -23,37 +24,30 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
     prisma.analyticsEvent.count({ where: { ...where, type: "AUTH_SUCCESS" } }),
     prisma.analyticsEvent.count({ where: { ...where, type: "AUTH_FAILURE" } }),
   ]);
-  const authenticated = await prisma.guestSession.findMany({ where: { ...where, status: "AUTHENTICATED", authenticatedAt: { not: null }, expiresAt: { not: null } }, select: { authenticatedAt: true, expiresAt: true }, take: 500 });
-  const average = authenticated.length
-    ? Math.round(authenticated.reduce((sum, row) => sum + ((row.expiresAt!.getTime() - row.authenticatedAt!.getTime()) / 60000), 0) / authenticated.length)
-    : 0;
   const apGroups = await prisma.guestSession.groupBy({ by: ["apMac"], where, _count: { _all: true }, orderBy: { _count: { apMac: "desc" } }, take: 5 });
   const ssidGroups = await prisma.guestSession.groupBy({ by: ["ssid"], where, _count: { _all: true }, orderBy: { _count: { ssid: "desc" } }, take: 5 });
   return (
     <main>
-      <h1 className="text-2xl font-semibold">Analytics</h1>
-      <p className="text-sm text-slate-600">{tenantId ? "Tenant view" : isSuperAdmin(user) ? "Platform-wide" : "Your tenants"}</p>
-      <section className="mt-4 grid gap-3 sm:grid-cols-3">
-        <Stat label="Total guests" value={total} />
+      <PageHeader title="Reports" lead={tenantId ? "Numbers for one customer only." : isSuperAdmin(user) ? "Numbers across every customer you can see." : "Numbers for your customers only."} />
+      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <Stat label="All visits" value={total} />
         <Stat label="Today" value={today} />
-        <Stat label="7 days" value={weekly} />
-        <Stat label="30 days" value={monthly} />
-        <Stat label="Active sessions" value={active} />
-        <Stat label="Average session minutes" value={average} />
-        <Stat label="Auth success" value={success} />
-        <Stat label="Auth failure" value={failure} />
+        <Stat label="Last 7 days" value={weekly} />
+        <Stat label="Last 30 days" value={monthly} />
+        <Stat label="Online now" value={active} />
+        <Stat label="Successful connections" value={success} />
+        <Stat label="Failed attempts" value={failure} />
       </section>
       <div className="mt-6 grid gap-4 md:grid-cols-2">
-        <List title="Top access points" rows={apGroups.map((row) => `${row.apMac || "unknown"} · ${row._count._all}`)} />
-        <List title="Top SSIDs" rows={ssidGroups.map((row) => `${row.ssid || "unknown"} · ${row._count._all}`)} />
+        <section className="rounded-2xl border border-[#e4ebf2] bg-white p-5">
+          <h2 className="font-semibold">Busiest access points</h2>
+          <ul className="mt-3 text-sm">{apGroups.map((row) => <li key={row.apMac}>{row.apMac || "unknown"} · {row._count._all}</li>)}</ul>
+        </section>
+        <section className="rounded-2xl border border-[#e4ebf2] bg-white p-5">
+          <h2 className="font-semibold">Busiest Wi-Fi names</h2>
+          <ul className="mt-3 text-sm">{ssidGroups.map((row) => <li key={row.ssid}>{row.ssid || "unknown"} · {row._count._all}</li>)}</ul>
+        </section>
       </div>
     </main>
   );
-}
-
-function Stat({ label, value }: { label: string; value: number }) {
-  return <article className="rounded-xl border bg-white p-4"><p className="text-sm text-slate-500">{label}</p><p className="text-2xl font-semibold">{value}</p></article>;
-}
-function List({ title, rows }: { title: string; rows: string[] }) {
-  return <section className="rounded-xl border bg-white p-4"><h2 className="font-semibold">{title}</h2><ul className="mt-2 text-sm">{rows.map((row) => <li key={row}>{row}</li>)}</ul></section>;
 }

@@ -4,54 +4,20 @@ import { getCurrentUser } from "@/server/authentication/session";
 import { isSuperAdmin } from "@/server/authentication/guards";
 import { Wordmark } from "@/components/brand";
 
-const groups = [
-  {
-    title: "Platform",
-    links: [
-      ["Dashboard", "/admin"],
-      ["Tenants", "/admin/tenants"],
-      ["Users", "/admin/users"],
-      ["Roles & Permissions", "/admin/roles"],
-    ],
-  },
-  {
-    title: "Network",
-    links: [
-      ["UniFi", "/admin/unifi"],
-      ["Controllers", "/admin/unifi#controllers"],
-      ["Sites", "/admin/unifi#sites"],
-      ["Access Points", "/admin/unifi#access-points"],
-      ["SSIDs", "/admin/unifi#ssids"],
-      ["Captive Portals", "/admin/portals"],
-      ["Authentication", "/admin/authentication"],
-      ["Vouchers", "/admin/vouchers"],
-    ],
-  },
-  {
-    title: "Guests",
-    links: [
-      ["Guest Sessions", "/admin/sessions"],
-      ["Guest Profiles", "/admin/guests"],
-      ["Analytics", "/admin/analytics"],
-    ],
-  },
-  {
-    title: "Messages",
-    links: [
-      ["Email Campaigns", "/admin/campaigns/email"],
-      ["SMS Campaigns", "/admin/campaigns/sms"],
-      ["SMTP", "/admin/settings/smtp"],
-      ["Message API", "/admin/settings/messaging"],
-    ],
-  },
-  {
-    title: "System",
-    links: [
-      ["Security", "/admin/security"],
-      ["Audit Logs", "/admin/audit"],
-      ["System Settings", "/admin/settings"],
-    ],
-  },
+const links = [
+  ["Home", "/admin", "Overview of your guest Wi-Fi"],
+  ["Customers", "/admin/tenants", "Businesses using this platform"],
+  ["Guest page", "/admin/portals", "Logo, colors, and welcome screen"],
+  ["Wi-Fi access points", "/admin/unifi", "Which radios send guests here"],
+  ["How guests connect", "/admin/authentication", "Terms, email, codes, or password"],
+  ["Access codes", "/admin/vouchers", "One-time or limited Wi-Fi codes"],
+  ["People online", "/admin/sessions", "Who is connected right now"],
+  ["Guest list", "/admin/guests", "Names and contact details collected"],
+  ["Reports", "/admin/analytics", "Usage numbers"],
+  ["Send email", "/admin/campaigns/email", "Messages to guests who opted in"],
+  ["Send text", "/admin/campaigns/sms", "SMS to guests who opted in"],
+  ["Staff", "/admin/users", "Who can manage this console"],
+  ["Settings", "/admin/settings", "Email server, phone API, and security"],
 ];
 
 const openPaths = ["/admin/login", "/admin/forgot-password", "/admin/reset-password", "/admin/change-password"];
@@ -65,47 +31,39 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const user = await getCurrentUser();
   return (
     <div className="min-h-screen bg-[#f5f8fb]">
-      <header className="bg-[#071525] text-white">
-        <div className="flex items-center justify-between gap-4 px-4 py-2 text-xs text-slate-300 md:px-6">
-          <p>Technology service provider · Captive portal platform</p>
-          <p>{user ? user.email : "Staff access"}</p>
-        </div>
-        <div className="flex items-center justify-between gap-4 border-t border-white/10 bg-white px-4 py-3 text-[#102033] md:px-6">
-          <Wordmark />
-          <div className="text-right text-sm">
-            <p className="font-semibold">{user?.name ?? "WirelessCom staff"}</p>
-            <p className="text-xs text-[#5c7284]">{user && isSuperAdmin(user) ? "Super Admin" : user?.roles.join(", ")}</p>
+      <header className="border-b border-[#e4ebf2] bg-white">
+        <div className="flex items-center justify-between gap-4 px-4 py-3 md:px-6">
+          <div>
+            <Wordmark />
+            <p className="mt-1 text-xs text-[#6b7f91]">Guest Wi-Fi console</p>
+          </div>
+          <div className="text-right">
+            <p className="text-sm font-semibold text-[#102033]">{user?.name ?? "Staff"}</p>
+            <p className="text-xs text-[#6b7f91]">{user && isSuperAdmin(user) ? "Platform administrator" : "Customer administrator"}</p>
           </div>
         </div>
       </header>
-      <div className="md:grid md:grid-cols-[260px_1fr]">
-        <aside className="border-r border-[#e4ebf2] bg-white md:min-h-[calc(100vh-92px)]">
-          <nav className="space-y-5 px-3 py-5">
-            {groups.map((group) => (
-              <div key={group.title}>
-                <p className="px-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#7b8ea0]">{group.title}</p>
-                <div className="mt-1">
-                  {group.links.map(([label, href]) => {
-                    const active = path === href;
-                    return (
-                      <Link
-                        key={href}
-                        href={href}
-                        className={`mt-1 block rounded-lg px-3 py-2 text-sm ${active ? "bg-[#e7f7fc] font-semibold text-[#0c7eab]" : "text-[#24384a] hover:bg-[#f3f7fb]"}`}
-                      >
-                        {label}
-                      </Link>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
-            <form action="/api/v1/auth/logout" method="post">
-              <button className="px-3 py-2 text-sm font-semibold text-[#0c7eab]" type="submit">Sign out</button>
+      <div className="md:grid md:grid-cols-[250px_1fr]">
+        <aside className="border-r border-[#e4ebf2] bg-white md:min-h-[calc(100vh-76px)]">
+          <nav className="px-3 py-4">
+            {links.map(([label, href]) => {
+              const active = path === href || (href !== "/admin" && path.startsWith(href));
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  className={`mt-1 block rounded-xl px-3 py-2.5 text-sm ${active ? "bg-[#e7f7fc] font-semibold text-[#0c7eab]" : "text-[#24384a] hover:bg-[#f3f7fb]"}`}
+                >
+                  {label}
+                </Link>
+              );
+            })}
+            <form action="/api/v1/auth/logout" method="post" className="mt-4 px-3">
+              <button className="text-sm font-semibold text-[#0c7eab]" type="submit">Sign out</button>
             </form>
           </nav>
         </aside>
-        <div className="wc-main min-w-0 px-4 py-6 md:px-8">{children}</div>
+        <div className="min-w-0 px-4 py-6 md:px-8">{children}</div>
       </div>
     </div>
   );

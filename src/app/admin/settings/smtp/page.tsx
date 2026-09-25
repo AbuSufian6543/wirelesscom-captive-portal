@@ -1,27 +1,44 @@
+import { prisma } from "@/server/database/client";
+import { isSuperAdmin } from "@/server/authentication/guards";
+import { listCustomers } from "@/server/admin/copy";
+import { Notice, PageHeader, Panel, PrimaryButton, TextField } from "@/components/admin-ui";
 import { requirePageUser } from "../../guard";
 import { saveSmtpAction } from "../../actions";
 
 export const dynamic = "force-dynamic";
 
 export default async function SmtpPage({ searchParams }: { searchParams: Promise<{ saved?: string }> }) {
-  await requirePageUser();
+  const user = await requirePageUser();
   const query = await searchParams;
+  const customers = await listCustomers(user);
   return (
     <main>
-      <h1 className="text-2xl font-semibold">SMTP</h1>
-      <p className="mt-1 text-sm text-slate-600">Leave tenant empty for the platform default. Passwords are encrypted and never shown again.</p>
-      {query.saved ? <p className="text-emerald-700">Saved.</p> : null}
-      <form action={saveSmtpAction} className="mt-4 grid max-w-xl gap-2 rounded-xl border bg-white p-4">
-        <input className="rounded border px-3 py-2" name="tenantId" placeholder="Tenant id for an override, or blank" />
-        <input className="rounded border px-3 py-2" name="host" placeholder="SMTP host" required />
-        <input className="rounded border px-3 py-2" name="port" placeholder="587" defaultValue="587" />
-        <input className="rounded border px-3 py-2" name="username" placeholder="Username" />
-        <input className="rounded border px-3 py-2" name="password" type="password" placeholder="Password" autoComplete="new-password" />
-        <select className="rounded border px-3 py-2" name="encryption"><option>STARTTLS</option><option>TLS</option><option>NONE</option></select>
-        <input className="rounded border px-3 py-2" name="fromEmail" type="email" placeholder="From email" required />
-        <input className="rounded border px-3 py-2" name="fromName" placeholder="From name" required />
-        <button className="rounded bg-slate-900 px-4 py-2 text-white" type="submit">Save SMTP</button>
-      </form>
+      <PageHeader title="Outgoing email" lead="Used for password resets and guest messages. Leave Customer set to All customers for the platform default. The password is encrypted and never shown again." />
+      {query.saved ? <Notice kind="ok">Email settings saved.</Notice> : null}
+      <Panel>
+        <form action={saveSmtpAction} className="grid max-w-xl gap-4">
+          <label className="text-sm font-semibold">Customer
+            <select className="mt-1 w-full rounded-xl border px-3 py-3" name="tenantId">
+              {isSuperAdmin(user) ? <option value="">All customers (platform default)</option> : null}
+              {customers.map((customer) => <option key={customer.id} value={customer.id}>{customer.name} only</option>)}
+            </select>
+          </label>
+          <TextField name="host" label="Mail server" placeholder="mail.example.com" required />
+          <TextField name="port" label="Port" value="587" />
+          <TextField name="username" label="Username" />
+          <TextField name="password" label="Password" type="password" />
+          <label className="text-sm font-semibold">Encryption
+            <select className="mt-1 w-full rounded-xl border px-3 py-3" name="encryption">
+              <option>STARTTLS</option>
+              <option>TLS</option>
+              <option>NONE</option>
+            </select>
+          </label>
+          <TextField name="fromEmail" label="From email" type="email" required />
+          <TextField name="fromName" label="From name" required />
+          <PrimaryButton>Save email settings</PrimaryButton>
+        </form>
+      </Panel>
     </main>
   );
 }

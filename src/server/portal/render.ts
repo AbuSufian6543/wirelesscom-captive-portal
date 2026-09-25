@@ -12,10 +12,10 @@ export type GuestPage = {
 };
 
 const METHOD_LABEL: Record<AuthMethodName, string> = {
-  ACCEPT_TERMS: "Continue",
-  EMAIL: "Email",
-  VOUCHER: "Voucher",
-  PASSWORD: "Password",
+  ACCEPT_TERMS: "Connect now",
+  EMAIL: "Use my email",
+  VOUCHER: "I have a code",
+  PASSWORD: "I have a password",
 };
 
 export function renderGuestPage(page: GuestPage): string {
@@ -32,7 +32,7 @@ export function renderGuestPage(page: GuestPage): string {
     check(portal.marketingField, "marketingConsent", "Send me offers from this location. This is optional."),
   ].join("");
   const methodFields = [
-    portal.methods.includes("VOUCHER") ? field("OPTIONAL", "voucherCode", "Voucher code", "text", "Enter your code") : "",
+    portal.methods.includes("VOUCHER") ? field("OPTIONAL", "voucherCode", "Access code", "text", "Enter your code") : "",
     portal.methods.includes("PASSWORD") ? field("OPTIONAL", "password", "Wi-Fi password", "password", "Password") : "",
   ].join("");
   const methods = portal.methods
@@ -41,7 +41,7 @@ export function renderGuestPage(page: GuestPage): string {
         `<label class="choice"><input type="radio" name="method" value="${item}" ${index === 0 ? "checked" : ""} ${page.preview ? "disabled" : ""}> ${METHOD_LABEL[item]}</label>`,
     )
     .join("");
-  const methodPicker = portal.methods.length > 1 ? `<fieldset class="methods"><legend>How would you like to connect?</legend>${methods}</fieldset>` : `<input type="hidden" name="method" value="${method}">`;
+  const methodPicker = portal.methods.length > 1 ? `<fieldset class="methods"><legend>Choose one way to get online</legend>${methods}</fieldset>` : `<input type="hidden" name="method" value="${method}">`;
   const bg = portal.backgroundPath ? `url('${escapeHtml(portal.backgroundPath)}')` : "none";
   const logo = portal.logoPath
     ? `<img class="logo" src="${escapeHtml(portal.logoPath)}" alt="${escapeHtml(portal.companyName)}">`

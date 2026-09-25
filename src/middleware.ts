@@ -25,4 +25,4 @@ export function middleware(request: NextRequest) {
   return NextResponse.next({ request: { headers: requestHeaders } });
 }
 
-export const config = { matcher: ["/admin/:path*", "/guest/:path*"] };
+export const config = { matcher: ["/admin", "/admin/:path*", "/guest/:path*"] };

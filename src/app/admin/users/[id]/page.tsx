@@ -2,6 +2,7 @@ import { prisma } from "@/server/database/client";
 import { isSuperAdmin } from "@/server/authentication/guards";
 import { requirePageUser } from "../../guard";
 import { deleteUserAction, resetUserPasswordAction } from "../../actions";
+import { Notice, PageHeader } from "@/components/admin-ui";
 
 export const dynamic = "force-dynamic";
 
@@ -10,18 +11,18 @@ export default async function UserDetail({ params, searchParams }: { params: Pro
   const { id } = await params;
   const query = await searchParams;
   const row = await prisma.user.findUnique({ where: { id }, include: { roles: { include: { role: true } }, tenants: { include: { tenant: true } } } });
-  if (!row) return <p>User not found.</p>;
+  if (!row) return <p>That staff account was not found.</p>;
   const shared = row.hasAllTenants || row.tenants.some((link) => user.tenantIds.includes(link.tenantId));
-  if (!isSuperAdmin(user) && !shared) return <p>You do not have access to this user.</p>;
+  if (!isSuperAdmin(user) && !shared) return <p>You cannot manage this staff account.</p>;
   return (
     <main>
-      <h1 className="text-2xl font-semibold">{row.name}</h1>
-      <p className="text-slate-600">{row.email}</p>
-      {query.temporary ? <p className="mt-4 rounded bg-amber-50 p-3 text-sm">Temporary password: {query.temporary}. It is shown once. Ask the user to change it at first sign-in.</p> : null}
+      <PageHeader title={row.name} lead={row.email} />
+      {query.temporary ? <Notice kind="ok">Temporary password: {query.temporary}. Show this once, then ask them to sign in and change it.</Notice> : null}
+      <p className="text-sm text-[#5c7284]">{row.hasAllTenants ? "May manage every customer." : `May manage: ${row.tenants.map((link) => link.tenant.name).join(", ") || "none"}`}</p>
       {isSuperAdmin(user) ? (
         <div className="mt-6 flex gap-3">
-          <form action={resetUserPasswordAction}><input type="hidden" name="userId" value={row.id} /><button className="rounded border px-3 py-2" type="submit">Reset password</button></form>
-          <form action={deleteUserAction}><input type="hidden" name="userId" value={row.id} /><button className="rounded border px-3 py-2 text-rose-700" type="submit">Delete user</button></form>
+          <form action={resetUserPasswordAction}><input type="hidden" name="userId" value={row.id} /><button className="rounded-xl border px-4 py-3" type="submit">Create a new temporary password</button></form>
+          <form action={deleteUserAction}><input type="hidden" name="userId" value={row.id} /><button className="rounded-xl border px-4 py-3 text-rose-700" type="submit">Remove this staff account</button></form>
         </div>
       ) : null}
     </main>
