@@ -189,7 +189,7 @@ async function ensureAdmin() {
       email,
       name: "Platform Admin",
       passwordHash: await hashPassword(password),
-      mustChangePassword: true,
+      mustChangePassword: false,
       hasAllTenants: true,
       roles: { create: { roleId: role.id } },
     },

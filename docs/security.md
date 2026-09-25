@@ -3,8 +3,8 @@
 ## Staff authentication
 
 - Passwords are hashed with Argon2id (19 MiB, time cost 2, parallelism 1).
-- The bootstrap password is read from `INITIAL_ADMIN_PASSWORD` at seed time, hashed, and never logged, audited, or committed.
-- New and bootstrap users have `mustChangePassword`. The admin UI will not open other pages until it is cleared.
+- The bootstrap password is read from `INITIAL_ADMIN_PASSWORD` at seed time and hashed with Argon2id. It is not written to logs. The unattended install value lives in `.env.example`.
+- Users created later from the admin panel still start with `mustChangePassword`. The bootstrap admin can sign in with the configured password.
 - Admin sessions are random 32-byte tokens. The database stores SHA-256 only. Cookies are `HttpOnly`, `SameSite=Lax`, and `Secure` in production.
 - Password reset tokens are 32 random bytes, stored as SHA-256, expire after 30 minutes, and become useless after one successful use. Existing passwords are never emailed.
 - Login and guest authentication are rate limited per IP and, for guests, per client MAC.

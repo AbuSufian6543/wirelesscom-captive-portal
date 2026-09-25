@@ -16,4 +16,4 @@ UniFi sends browsers to `/guest/s/default/` with `ap`, `id`, `t`, `url`, and `ss
 
 ## Staff path
 
-Sign in at `/admin/login`. The first Super Admin is created from `INITIAL_ADMIN_EMAIL` and `INITIAL_ADMIN_PASSWORD` and must change that password immediately.
+Sign in at `/admin/login` as `abu@wirelesscom.ca`. The password is `INITIAL_ADMIN_PASSWORD` in `.env.example`. `./deploy.sh` copies that file and generates `SESSION_SECRET` and `APP_ENCRYPTION_KEY` on the server.

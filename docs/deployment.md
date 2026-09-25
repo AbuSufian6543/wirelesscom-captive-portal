@@ -10,14 +10,11 @@ sudo apt-get install -y docker.io docker-compose-v2
 sudo usermod -aG docker "$USER"
 # log in again so the docker group applies
 cd /opt/wirelesscom-captive-portal
-cp .env.example .env
-# edit .env: SESSION_SECRET, APP_ENCRYPTION_KEY, INITIAL_ADMIN_PASSWORD,
-# APP_BIND_HOST, PORTAL_PUBLIC_IP, PORTAL_DOMAIN, APP_PUBLIC_URL
 chmod +x deploy.sh
 ./deploy.sh
 ```
 
-`deploy.sh` builds the image, starts PostgreSQL on the internal Docker network, applies migrations, and runs the idempotent seed. The app listens on `APP_BIND_HOST:APP_PORT` (default `127.0.0.1:3000`).
+`deploy.sh` creates `.env` from `.env.example` when needed, generates `SESSION_SECRET` and `APP_ENCRYPTION_KEY` on the server, builds the image, starts PostgreSQL on the internal Docker network, applies migrations, and runs the idempotent seed. The initial admin password is already set in `.env.example`. The app listens on `APP_BIND_HOST:APP_PORT` (default `127.0.0.1:3000`).
 
 If the reverse proxy is another machine, set `APP_BIND_HOST` to this server's private address and allow only the proxy's address to reach `APP_PORT`.
 

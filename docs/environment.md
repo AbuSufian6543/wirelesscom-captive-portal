@@ -17,7 +17,7 @@ Copy `.env.example` to `.env`. `.env` is not committed.
 | `SESSION_SECRET` | yes | HMAC key for unsubscribe tokens. At least 32 characters. |
 | `APP_ENCRYPTION_KEY` | yes | Base64 of 32 bytes for AES-256-GCM. |
 | `INITIAL_ADMIN_EMAIL` | seed | First Super Admin. Default address is `abu@wirelesscom.ca`. |
-| `INITIAL_ADMIN_PASSWORD` | seed | Used once, when that user does not exist. Minimum 12 characters. Not the example placeholder. |
+| `INITIAL_ADMIN_PASSWORD` | seed | Used once, when that user does not exist. The unattended value is in `.env.example`. |
 | `UNIFI_API_URL` | no | Optional default shown when creating a controller. |
 | `UNIFI_API_USERNAME` | no | Optional default. |
 | `UNIFI_API_PASSWORD` | no | Optional default. Not written into source. |

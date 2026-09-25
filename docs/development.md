@@ -13,7 +13,7 @@ With Docker:
 
 ```bash
 cp .env.example .env
-# Set SESSION_SECRET, APP_ENCRYPTION_KEY, and INITIAL_ADMIN_PASSWORD.
+# ./deploy.sh generates SESSION_SECRET and APP_ENCRYPTION_KEY. The admin password is already in .env.example.
 # For a database on the host instead of Compose, point DATABASE_URL at it.
 docker compose up -d db
 npx prisma migrate deploy

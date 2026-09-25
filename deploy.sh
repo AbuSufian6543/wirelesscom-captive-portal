@@ -10,8 +10,32 @@ fi
 if [[ ! -f .env ]]; then
   cp .env.example .env
   echo "Created .env from .env.example."
-  echo "Edit SESSION_SECRET, APP_ENCRYPTION_KEY, and INITIAL_ADMIN_PASSWORD, then run ./deploy.sh again."
-  exit 1
+fi
+
+set_env() {
+  local key="$1"
+  local value="$2"
+  local tmp
+  tmp="$(mktemp)"
+  if grep -q "^${key}=" .env; then
+    awk -v k="$key" -v v="$value" 'BEGIN { FS = OFS = "=" } $1 == k { print k "=" v; next } { print }' .env >"$tmp"
+  else
+    cp .env "$tmp"
+    printf '%s=%s\n' "$key" "$value" >>"$tmp"
+  fi
+  mv "$tmp" .env
+}
+
+current_session="$(grep '^SESSION_SECRET=' .env | head -1 | cut -d= -f2- || true)"
+if [[ -z "$current_session" || "$current_session" == "replace-with-a-long-random-string" || ${#current_session} -lt 32 ]]; then
+  set_env SESSION_SECRET "$(openssl rand -base64 48 | tr -d '\n')"
+  echo "Generated SESSION_SECRET in .env."
+fi
+
+current_key="$(grep '^APP_ENCRYPTION_KEY=' .env | head -1 | cut -d= -f2- || true)"
+if [[ -z "$current_key" || "$current_key" == "replace-with-a-32-byte-base64-key" ]]; then
+  set_env APP_ENCRYPTION_KEY "$(openssl rand -base64 32 | tr -d '\n')"
+  echo "Generated APP_ENCRYPTION_KEY in .env."
 fi
 
 set -a
@@ -19,19 +43,9 @@ set -a
 source .env
 set +a
 
-if [[ -z "${SESSION_SECRET:-}" || ${#SESSION_SECRET} -lt 32 ]]; then
-  echo "SESSION_SECRET must be at least 32 characters."
+if [[ -z "${INITIAL_ADMIN_PASSWORD:-}" || ${#INITIAL_ADMIN_PASSWORD} -lt 12 ]]; then
+  echo "INITIAL_ADMIN_PASSWORD must be at least 12 characters."
   exit 1
-fi
-if [[ -z "${APP_ENCRYPTION_KEY:-}" || "${APP_ENCRYPTION_KEY}" == "replace-with-a-32-byte-base64-key" ]]; then
-  echo "Set APP_ENCRYPTION_KEY to 32 bytes of base64."
-  exit 1
-fi
-if [[ "${1:-}" != "--update" ]]; then
-  if [[ -z "${INITIAL_ADMIN_PASSWORD:-}" || "${INITIAL_ADMIN_PASSWORD}" == "change-me-before-first-boot" || ${#INITIAL_ADMIN_PASSWORD} -lt 12 ]]; then
-    echo "Set INITIAL_ADMIN_PASSWORD to a unique password of at least 12 characters."
-    exit 1
-  fi
 fi
 
 echo "Building the captive portal. Ports 80 and 443 stay on the separate NGINX server."

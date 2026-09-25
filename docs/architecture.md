@@ -65,4 +65,4 @@ Roles and permissions are tables. `SUPER_ADMIN`, `TENANT_ADMIN`, and `TENANT_USE
 
 ## Bootstrap
 
-On first boot the seed creates the platform-owner tenant, the initial customer tenants, mock UniFi infrastructure, portal content, and the first Super Admin from `INITIAL_ADMIN_EMAIL` and `INITIAL_ADMIN_PASSWORD`. The password is hashed with Argon2id and is not written to logs. Later seeds do not reset that password. The account must change its password on first login.
+On first boot the seed creates the platform-owner tenant, the initial customer tenants, mock UniFi infrastructure, portal content, and the first Super Admin from `INITIAL_ADMIN_EMAIL` and `INITIAL_ADMIN_PASSWORD`. The password is hashed with Argon2id and is not written to logs. Later seeds do not reset that password.
