@@ -5,18 +5,14 @@ The application server is Ubuntu. NGINX stays on its own server. This host publi
 ## First boot
 
 ```bash
-sudo apt-get update
-sudo apt-get install -y docker.io docker-compose-v2
-sudo usermod -aG docker "$USER"
-# log in again so the docker group applies
 cd /opt/wirelesscom-captive-portal
 chmod +x deploy.sh
 ./deploy.sh
 ```
 
-`deploy.sh` creates `.env` from `.env.example` when needed, generates `SESSION_SECRET` and `APP_ENCRYPTION_KEY` on the server, builds the image, starts PostgreSQL on the internal Docker network, applies migrations, and runs the idempotent seed. The initial admin password is already set in `.env.example`. The app listens on `APP_BIND_HOST:APP_PORT` (default `127.0.0.1:3000`).
+`deploy.sh` installs Docker if it is missing, creates `.env` from `.env.example`, generates `SESSION_SECRET` and `APP_ENCRYPTION_KEY`, binds the app to this server's private IP on port 3000, builds the image, starts PostgreSQL on the internal Docker network, applies migrations, and runs the idempotent seed. The initial admin password is already set in `.env.example`.
 
-If the reverse proxy is another machine, set `APP_BIND_HOST` to this server's private address and allow only the proxy's address to reach `APP_PORT`.
+Allow only the NGINX server to reach port 3000.
 
 ## Updates
 

@@ -2,9 +2,24 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
-if ! command -v docker >/dev/null 2>&1; then
-  echo "Docker is required. Install docker.io and docker-compose-v2, then run this again."
-  exit 1
+if [[ "${EUID}" -ne 0 ]]; then
+  echo "Installing Docker and starting the portal with administrator rights."
+  exec sudo bash "$0" "$@"
+fi
+
+export DEBIAN_FRONTEND=noninteractive
+if ! command -v docker >/dev/null 2>&1 || ! docker compose version >/dev/null 2>&1; then
+  apt-get update
+  apt-get install -y docker.io docker-compose-v2 openssl
+fi
+if ! command -v openssl >/dev/null 2>&1; then
+  apt-get update
+  apt-get install -y openssl
+fi
+systemctl enable --now docker
+
+if [[ -n "${SUDO_USER:-}" && "${SUDO_USER}" != "root" ]]; then
+  usermod -aG docker "${SUDO_USER}"
 fi
 
 if [[ ! -f .env ]]; then
@@ -38,6 +53,15 @@ if [[ -z "$current_key" || "$current_key" == "replace-with-a-32-byte-base64-key"
   echo "Generated APP_ENCRYPTION_KEY in .env."
 fi
 
+current_bind="$(grep '^APP_BIND_HOST=' .env | head -1 | cut -d= -f2- || true)"
+if [[ -z "$current_bind" || "$current_bind" == "127.0.0.1" ]]; then
+  private_ip="$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{for (i=1; i<=NF; i++) if ($i=="src") { print $(i+1); exit }}')"
+  if [[ -n "$private_ip" ]]; then
+    set_env APP_BIND_HOST "$private_ip"
+    echo "Portal will listen on ${private_ip}:3000 for the NGINX server."
+  fi
+fi
+
 set -a
 # shellcheck disable=SC1091
 source .env
@@ -51,4 +75,4 @@ fi
 echo "Building the captive portal. Ports 80 and 443 stay on the separate NGINX server."
 docker compose up -d --build
 echo "Application is publishing ${APP_BIND_HOST:-127.0.0.1}:${APP_PORT:-3000}."
-echo "Point the NGINX proxy at that private address. See docs/nginx.md."
+echo "Point the NGINX proxy at that address. See docs/nginx.md."
