@@ -22,7 +22,7 @@ export default async function UnifiPage({ searchParams }: { searchParams: Promis
       {query.error ? <p className="text-rose-700">{query.error}</p> : null}
       {query.saved ? <p className="text-emerald-700">Saved.</p> : null}
       <section>
-        <h2 className="font-semibold">Access points</h2>
+        <h2 id="access-points" className="font-semibold">Access points</h2>
         <ul className="mt-2 divide-y rounded-xl border bg-white">
           {aps.map((ap) => <li key={ap.id} className="px-4 py-2 text-sm">{ap.mac} · {ap.name} · {ap.tenant.name} · {ap.site.name}</li>)}
         </ul>
@@ -36,7 +36,7 @@ export default async function UnifiPage({ searchParams }: { searchParams: Promis
       </section>
       <section className="grid gap-4 lg:grid-cols-3">
         <form action={createControllerAction} className="grid gap-2 rounded-xl border bg-white p-4">
-          <h2 className="font-semibold">Controller</h2>
+          <h2 id="controllers" className="font-semibold">Controller</h2>
           <TenantSelect tenants={tenants} />
           <input className="rounded border px-3 py-2" name="name" placeholder="Name" required />
           <select className="rounded border px-3 py-2" name="mode"><option>MOCK</option><option>REAL</option></select>
@@ -48,7 +48,7 @@ export default async function UnifiPage({ searchParams }: { searchParams: Promis
           <button className="rounded bg-slate-900 px-3 py-2 text-white" type="submit">Add controller</button>
         </form>
         <form action={createSiteAction} className="grid gap-2 rounded-xl border bg-white p-4">
-          <h2 className="font-semibold">Site</h2>
+          <h2 id="sites" className="font-semibold">Site</h2>
           <TenantSelect tenants={tenants} />
           <select className="rounded border px-3 py-2" name="controllerId">{controllers.map((controller) => <option key={controller.id} value={controller.id}>{controller.tenant.name}: {controller.name}</option>)}</select>
           <input className="rounded border px-3 py-2" name="name" placeholder="Site name" required />
@@ -56,7 +56,7 @@ export default async function UnifiPage({ searchParams }: { searchParams: Promis
           <button className="rounded bg-slate-900 px-3 py-2 text-white" type="submit">Add site</button>
         </form>
         <form action={createSsidAction} className="grid gap-2 rounded-xl border bg-white p-4">
-          <h2 className="font-semibold">SSID</h2>
+          <h2 id="ssids" className="font-semibold">SSID</h2>
           <TenantSelect tenants={tenants} />
           <select className="rounded border px-3 py-2" name="siteId">{sites.map((site) => <option key={site.id} value={site.id}>{site.name}</option>)}</select>
           <input className="rounded border px-3 py-2" name="name" placeholder="SSID" required />

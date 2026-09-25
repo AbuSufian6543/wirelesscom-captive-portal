@@ -16,4 +16,4 @@ UniFi sends browsers to `/guest/s/default/` with `ap`, `id`, `t`, `url`, and `ss
 
 ## Staff path
 
-Sign in at `/admin/login` as `abu@wirelesscom.ca`. The password is `INITIAL_ADMIN_PASSWORD` in `.env.example`. `./deploy.sh` copies that file and generates `SESSION_SECRET` and `APP_ENCRYPTION_KEY` on the server.
+Sign in at `/admin/login` as `abu@wirelesscom.ca`. The password is `INITIAL_ADMIN_PASSWORD` in the server `.env`, which is not committed. `./deploy.sh` creates `.env` from the example and generates `SESSION_SECRET` and `APP_ENCRYPTION_KEY`.

@@ -13,6 +13,7 @@ import { completePasswordReset, prismaResetStore, requestPasswordReset } from "@
 import { encryptSecret } from "@/server/shared/crypto";
 import { checkRedirectUrl } from "@/server/shared/redirect";
 import { contrastRatio, isHexColor } from "@/server/shared/color";
+import { sanitizeCustomCss } from "@/server/portal/css";
 import { normalizeMac } from "@/server/shared/mac";
 import { EmailService } from "@/server/email/email-service";
 import { MessageService } from "@/server/messaging/message-service";
@@ -162,6 +163,7 @@ export async function savePortalAction(form: FormData) {
     data: {
       ...(data as object),
       sessionDurationMinutes: minutes,
+      customCss: sanitizeCustomCss(String(form.get("customCss") ?? "")),
       uploadKbps: numberOrNull(form.get("uploadKbps")),
       downloadKbps: numberOrNull(form.get("downloadKbps")),
       dataLimitMb: numberOrNull(form.get("dataLimitMb")),

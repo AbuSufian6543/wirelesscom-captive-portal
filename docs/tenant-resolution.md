@@ -27,9 +27,9 @@ The seed inserts three tenants and three access points as data:
 
 | Tenant | Kind | Example AP MAC | Redirect |
 | --- | --- | --- | --- |
-| WirelessCom.Ca Inc. | PLATFORM_OWNER | `d0:21:f9:bc:38:d4` | `https://wirelesscom.ca` |
-| Pinos | CUSTOMER | `aa:bb:cc:00:11:01` | `https://pinos.ca` |
-| Trinity | CUSTOMER | `aa:bb:cc:00:22:02` | `https://trinity.ca` |
+| WirelessCom.Ca Inc. | PLATFORM_OWNER | `d0:21:f9:bc:38:01` | `https://wirelesscom.ca` |
+| Pinos | CUSTOMER | `d0:21:f9:bc:38:d4` | `https://pinos.ca` |
+| Trinity | CUSTOMER | `aa:bb:cc:dd:ee:ff` | `https://trinity.ca` |
 
 Those MACs exist so the mock provider and the test suite can prove isolation. Adding the next customer is an admin-panel operation: create the tenant, controller, site, SSID, and AP. No deploy is required.
 

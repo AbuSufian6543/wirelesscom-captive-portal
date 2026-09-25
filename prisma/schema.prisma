@@ -316,6 +316,7 @@ model PortalConfiguration {
   termsField             FieldMode @default(REQUIRED)
   privacyField           FieldMode @default(REQUIRED)
   marketingField         FieldMode @default(OPTIONAL)
+  customCss              String    @default("")
   updatedAt              DateTime  @updatedAt
   tenant                 Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 }

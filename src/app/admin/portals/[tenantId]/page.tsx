@@ -42,6 +42,7 @@ export default async function DesignerPage({ params, searchParams }: { params: P
           <Text name="description" label="Description" value={portal.description} />
           <Text name="buttonText" label="Button text" value={portal.buttonText} />
           <Text name="footerText" label="Footer" value={portal.footerText} />
+          <Area name="customCss" label="Custom CSS" value={portal.customCss} />
           <Area name="supportText" label="Support" value={portal.supportText} />
           <Area name="termsText" label="Terms and conditions" value={portal.termsText} />
           <Text name="termsVersion" label="Terms version" value={portal.termsVersion} />

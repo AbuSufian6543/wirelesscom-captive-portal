@@ -18,6 +18,10 @@ const groups = [
     title: "Network",
     links: [
       ["UniFi", "/admin/unifi"],
+      ["Controllers", "/admin/unifi#controllers"],
+      ["Sites", "/admin/unifi#sites"],
+      ["Access Points", "/admin/unifi#access-points"],
+      ["SSIDs", "/admin/unifi#ssids"],
       ["Captive Portals", "/admin/portals"],
       ["Authentication", "/admin/authentication"],
       ["Vouchers", "/admin/vouchers"],

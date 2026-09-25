@@ -36,6 +36,7 @@ const portalSelect = {
   termsField: true,
   privacyField: true,
   marketingField: true,
+  customCss: true,
 } as const;
 
 export async function findPortalByApMac(mac: string): Promise<ResolvedPortal | null> {

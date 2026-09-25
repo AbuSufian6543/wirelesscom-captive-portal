@@ -9,6 +9,7 @@ import { MockUniFiProvider } from "@/server/unifi/mock-provider";
 import { canAccessTenant, requireTenantAccess, requireSuperAdmin, type AuthUser } from "@/server/authentication/guards";
 import { completePasswordReset, requestPasswordReset, type ResetStore } from "@/server/authentication/reset";
 import { hashPassword, verifyPassword } from "@/server/authentication/password";
+import { sanitizeCustomCss } from "@/server/portal/css";
 
 const query = "ap=d0:21:f9:bc:38:d4&id=e4:a7:a0:74:f9:b9&t=1790349699&url=http://www.msftconnecttest.com/redirect&ssid=Captive%20Portal%20Test%20SE";
 
@@ -62,7 +63,7 @@ function portal(partial: Partial<ResolvedPortal> & Pick<ResolvedPortal, "tenant"
 
 const wireless = portal({
   tenant: { id: "t-wc", name: "WirelessCom.Ca Inc.", slug: "wirelesscom", status: "ACTIVE" },
-  accessPoint: { id: "ap-wc", mac: "d0:21:f9:bc:38:d4", name: "WC", enabled: true },
+  accessPoint: { id: "ap-wc", mac: "d0:21:f9:bc:38:01", name: "WC", enabled: true },
   portal: {
     ...portal({ tenant: { id: "t-wc", name: "WirelessCom.Ca Inc.", slug: "wirelesscom", status: "ACTIVE" } }).portal,
     redirectUrl: "https://wirelesscom.ca",
@@ -71,7 +72,8 @@ const wireless = portal({
 });
 const pinos = portal({
   tenant: { id: "t-pinos", name: "Pinos", slug: "pinos", status: "ACTIVE" },
-  accessPoint: { id: "ap-pinos", mac: "aa:bb:cc:00:11:01", name: "Pinos", enabled: true },
+  accessPoint: { id: "ap-pinos", mac: "d0:21:f9:bc:38:d4", name: "Pinos", enabled: true },
+  ssidName: "Pinos-Guest",
   portal: {
     ...portal({ tenant: { id: "t-pinos", name: "Pinos", slug: "pinos", status: "ACTIVE" } }).portal,
     redirectUrl: "https://pinos.ca",
@@ -81,7 +83,8 @@ const pinos = portal({
 });
 const trinity = portal({
   tenant: { id: "t-trinity", name: "Trinity", slug: "trinity", status: "ACTIVE" },
-  accessPoint: { id: "ap-trinity", mac: "aa:bb:cc:00:22:02", name: "Trinity", enabled: true },
+  accessPoint: { id: "ap-trinity", mac: "aa:bb:cc:dd:ee:ff", name: "Trinity", enabled: true },
+  ssidName: "Trinity-Guest",
   portal: {
     ...portal({ tenant: { id: "t-trinity", name: "Trinity", slug: "trinity", status: "ACTIVE" } }).portal,
     redirectUrl: "https://trinity.ca",
@@ -327,6 +330,15 @@ describe("password reset", () => {
     expect(await verifyPassword(hashed, "correct-horse-1")).toBe(true);
     const second = await completePasswordReset(store, token, "correct-horse-2");
     expect(second.ok).toBe(false);
+  });
+});
+
+describe("custom portal css", () => {
+  it("drops active content and remote urls", () => {
+    const css = sanitizeCustomCss(".card{color:red}\nbody{background:url(https://evil.example)}\n@import 'x';\n.x{color:blue}");
+    expect(css).toContain(".card{color:red}");
+    expect(css).not.toContain("url(");
+    expect(css).not.toContain("@import");
   });
 });
 

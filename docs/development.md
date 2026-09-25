@@ -29,7 +29,7 @@ Guest preview (WirelessCom seed AP):
 http://127.0.0.1:3000/guest/s/default/?ap=d0:21:f9:bc:38:d4&id=e4:a7:a0:74:f9:b9&t=1790349699&url=http://www.msftconnecttest.com/redirect&ssid=Captive%20Portal%20Test%20SE
 ```
 
-Pinos and Trinity use `aa:bb:cc:00:11:01` and `aa:bb:cc:00:22:02`.
+Pinos uses `d0:21:f9:bc:38:d4` and SSID `Pinos-Guest`. Trinity uses `aa:bb:cc:dd:ee:ff` and SSID `Trinity-Guest`.
 
 ## Tests
 

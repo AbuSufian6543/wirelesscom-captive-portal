@@ -49,9 +49,9 @@ async function main() {
     support: "Need help? Ask a WirelessCom representative.",
     footer: "WirelessCom.Ca Inc.",
     logo: "/branding/wirelesscom.svg",
-    apMac: "d0:21:f9:bc:38:d4",
+    apMac: "d0:21:f9:bc:38:01",
     apName: "WirelessCom front desk",
-    ssid: "Captive Portal Test SE",
+    ssid: "WirelessCom Guest",
     siteName: "WirelessCom HQ",
   });
   await ensureTenant({
@@ -73,9 +73,9 @@ async function main() {
     support: "Ask any Pinos team member if you need help connecting.",
     footer: "Pinos",
     logo: "/branding/pinos.svg",
-    apMac: "aa:bb:cc:00:11:01",
+    apMac: "d0:21:f9:bc:38:d4",
     apName: "Pinos dining room",
-    ssid: "Pinos Guest",
+    ssid: "Pinos-Guest",
     siteName: "Pinos",
   });
   await ensureTenant({
@@ -97,13 +97,35 @@ async function main() {
     support: "Contact the Trinity host if the page does not load.",
     footer: "Trinity",
     logo: "/branding/trinity.svg",
-    apMac: "aa:bb:cc:00:22:02",
+    apMac: "aa:bb:cc:dd:ee:ff",
     apName: "Trinity lobby",
-    ssid: "Trinity Guest",
+    ssid: "Trinity-Guest",
     siteName: "Trinity",
   });
 
   await ensureAdmin();
+}
+
+async function syncDemoAccessPoint(tenantId: string, input: { apMac: string; apName: string; ssid: string; siteName: string; name: string }) {
+  let site = await prisma.unifiSite.findFirst({ where: { tenantId } });
+  if (!site) {
+    const controller = await prisma.unifiController.create({ data: { tenantId, name: `${input.name} controller`, mode: "MOCK" } });
+    site = await prisma.unifiSite.create({ data: { tenantId, controllerId: controller.id, name: input.siteName, externalId: "default" } });
+  }
+  const ssid = await prisma.unifiSsid.upsert({
+    where: { siteId_name: { siteId: site.id, name: input.ssid } },
+    update: { enabled: true },
+    create: { tenantId, siteId: site.id, name: input.ssid },
+  });
+  const existingAp = await prisma.unifiAccessPoint.findUnique({ where: { mac: input.apMac } });
+  const ap = existingAp
+    ? await prisma.unifiAccessPoint.update({ where: { id: existingAp.id }, data: { tenantId, siteId: site.id, name: input.apName, enabled: true } })
+    : await prisma.unifiAccessPoint.create({ data: { tenantId, siteId: site.id, mac: input.apMac, name: input.apName } });
+  await prisma.apSsid.upsert({
+    where: { accessPointId_ssidId: { accessPointId: ap.id, ssidId: ssid.id } },
+    update: {},
+    create: { accessPointId: ap.id, ssidId: ssid.id },
+  });
 }
 
 async function ensureTenant(input: {
@@ -131,7 +153,10 @@ async function ensureTenant(input: {
   siteName: string;
 }) {
   const existing = await prisma.tenant.findUnique({ where: { slug: input.slug } });
-  if (existing) return;
+  if (existing) {
+    await syncDemoAccessPoint(existing.id, input);
+    return;
+  }
   const tenant = await prisma.tenant.create({ data: { slug: input.slug, name: input.name, kind: input.kind } });
   await prisma.portalConfiguration.create({
     data: {
@@ -189,7 +214,7 @@ async function ensureAdmin() {
       email,
       name: "Platform Admin",
       passwordHash: await hashPassword(password),
-      mustChangePassword: false,
+      mustChangePassword: true,
       hasAllTenants: true,
       roles: { create: { roleId: role.id } },
     },

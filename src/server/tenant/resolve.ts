@@ -30,6 +30,7 @@ export type PortalView = {
   privacyField: FieldMode;
   marketingField: FieldMode;
   methods: AuthMethodName[];
+  customCss?: string;
 };
 
 export type ResolvedPortal = {

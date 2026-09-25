@@ -1,4 +1,5 @@
 import { escapeHtml, textToHtml } from "@/server/shared/html";
+import { sanitizeCustomCss } from "./css";
 import type { AuthMethodName, PortalView } from "@/server/tenant/resolve";
 
 export type GuestPage = {
@@ -84,6 +85,7 @@ button{width:100%;min-height:54px;margin-top:18px;border:0;border-radius:12px;ba
 a{color:${escapeHtml(portal.primaryColor)}}
 .error{background:#fff1f2;color:#9f1239;border-radius:10px;padding:10px 12px;text-align:center}
 </style>
+${sanitizeCustomCss(portal.customCss ?? "") ? `<style>${sanitizeCustomCss(portal.customCss ?? "")}</style>` : ""}
 </head>
 <body>
 <main class="wrap">
