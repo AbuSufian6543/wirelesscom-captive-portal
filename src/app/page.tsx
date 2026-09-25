@@ -1,14 +1,20 @@
 import Link from "next/link";
+import { Wordmark } from "@/components/brand";
 
 export default function HomePage() {
   return (
-    <main className="mx-auto flex min-h-screen max-w-lg flex-col justify-center px-6">
-      <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">WirelessCom.Ca Inc.</p>
-      <h1 className="mt-2 text-3xl font-semibold">Captive portal platform</h1>
-      <p className="mt-3 text-slate-600">Guest Wi-Fi sign-in is served on the /guest path. Staff tools are separate.</p>
-      <Link className="mt-6 inline-flex w-fit rounded-lg bg-slate-900 px-4 py-3 text-white" href="/admin/login">
-        Staff sign in
-      </Link>
+    <main>
+      <div className="bg-[#071525] px-6 py-3 text-xs text-slate-300">Technology service provider · Serving Northern Ontario since 2005</div>
+      <header className="flex items-center justify-between bg-white px-6 py-4">
+        <Wordmark />
+        <Link className="rounded-lg bg-[#1cb4e4] px-4 py-2 text-sm font-semibold text-white" href="/admin/login">Staff sign in</Link>
+      </header>
+      <section className="bg-[#071525] px-6 py-16 text-white">
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#8fd4ee]">Captive portal platform</p>
+        <h1 className="mt-4 max-w-3xl text-4xl font-semibold leading-tight md:text-5xl">Guest Wi-Fi for WirelessCom and every customer tenant.</h1>
+        <p className="mt-4 max-w-2xl text-lg text-slate-300">One portal engine. Separate branding, terms, and access for each business.</p>
+        <Link className="mt-8 inline-flex rounded-lg bg-[#1cb4e4] px-5 py-3 font-semibold text-white" href="/admin/login">Open the admin console</Link>
+      </section>
     </main>
   );
 }

@@ -14,11 +14,15 @@ export function middleware(request: NextRequest) {
     const open = ["/admin/login", "/admin/forgot-password", "/admin/reset-password"];
     const isOpen = open.some((path) => request.nextUrl.pathname === path);
     if (!isOpen && !request.cookies.get("wcp_session")) {
-      const login = new URL("/admin/login", request.url);
+      const login = request.nextUrl.clone();
+      login.pathname = "/admin/login";
+      login.search = "";
       return NextResponse.redirect(login);
     }
   }
-  return NextResponse.next();
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-pathname", request.nextUrl.pathname);
+  return NextResponse.next({ request: { headers: requestHeaders } });
 }
 
 export const config = { matcher: ["/admin/:path*", "/guest/:path*"] };

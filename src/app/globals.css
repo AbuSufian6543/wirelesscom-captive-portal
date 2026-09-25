@@ -2,13 +2,75 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --wc-navy: #071525;
+  --wc-ink: #102033;
+  --wc-cyan: #1cb4e4;
+  --wc-cyan-dark: #0e92c4;
+  --wc-line: #e4ebf2;
+  --wc-paper: #f5f8fb;
+}
+
 body {
   margin: 0;
   font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  background: #f4f7fb;
-  color: #0f172a;
+  background: var(--wc-paper);
+  color: var(--wc-ink);
 }
 
 input, select, textarea, button {
   font: inherit;
+}
+
+.wc-main h1 {
+  font-size: 1.75rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  color: var(--wc-navy);
+}
+
+.wc-main h2 {
+  color: var(--wc-navy);
+}
+
+.wc-main p {
+  color: #4d6072;
+}
+
+.wc-main input,
+.wc-main select,
+.wc-main textarea {
+  border: 1px solid #d5e0ea;
+  border-radius: 10px;
+  background: #fff;
+  color: var(--wc-ink);
+}
+
+.wc-main input:focus,
+.wc-main select:focus,
+.wc-main textarea:focus {
+  outline: 2px solid rgba(28, 180, 228, 0.35);
+  border-color: var(--wc-cyan);
+}
+
+.wc-main button[type="submit"] {
+  border: 0;
+  border-radius: 10px;
+  background: var(--wc-cyan);
+  color: #fff;
+  font-weight: 700;
+}
+
+.wc-main button[type="submit"]:hover {
+  background: var(--wc-cyan-dark);
+}
+
+.wc-main .rounded-xl,
+.wc-main article,
+.wc-main table {
+  border-color: var(--wc-line);
+}
+
+.wc-main a {
+  color: #0c7eab;
 }

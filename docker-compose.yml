@@ -29,7 +29,7 @@ services:
       APP_HOST: 0.0.0.0
       DATABASE_URL: postgresql://portal:portal@db:5432/portal?schema=public
     ports:
-      - "${APP_BIND_HOST:-127.0.0.1}:${APP_PORT:-3000}:3000"
+      - "${APP_BIND_HOST:-0.0.0.0}:${APP_PORT:-3000}:3000"
     depends_on:
       db:
         condition: service_healthy

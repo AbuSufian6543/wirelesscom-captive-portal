@@ -4,7 +4,7 @@ const schema = z.object({
   APP_ENV: z.enum(["development", "test", "production"]).default("development"),
   APP_HOST: z.string().default("127.0.0.1"),
   APP_PORT: z.coerce.number().int().positive().default(3000),
-  APP_BIND_HOST: z.string().default("127.0.0.1"),
+  APP_BIND_HOST: z.string().default("0.0.0.0"),
   APP_TRUST_PROXY: z.enum(["true", "false"]).default("true"),
   PORTAL_PUBLIC_IP: z.string().default(""),
   PORTAL_DOMAIN: z.string().default(""),

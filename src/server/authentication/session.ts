@@ -1,4 +1,4 @@
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { prisma } from "@/server/database/client";
 import { randomToken, sha256 } from "@/server/shared/crypto";
 import type { AuthUser } from "./guards";
@@ -21,7 +21,7 @@ export async function createAdminSession(userId: string, ip: string, userAgent: 
   jar.set(COOKIE, token, {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.APP_ENV === "production",
+    secure: await cookieIsSecure(),
     path: "/",
     maxAge: TWELVE_HOURS,
   });
@@ -71,6 +71,12 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
     permissions: [...permissions],
     tenantIds: session.user.tenants.map((row) => row.tenantId),
   };
+}
+
+async function cookieIsSecure(): Promise<boolean> {
+  const headerStore = await headers();
+  const forwarded = headerStore.get("x-forwarded-proto")?.split(",")[0]?.trim();
+  return forwarded === "https";
 }
 
 export async function revokeUserSessions(userId: string): Promise<void> {

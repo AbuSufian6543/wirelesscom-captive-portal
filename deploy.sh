@@ -53,14 +53,8 @@ if [[ -z "$current_key" || "$current_key" == "replace-with-a-32-byte-base64-key"
   echo "Generated APP_ENCRYPTION_KEY in .env."
 fi
 
-current_bind="$(grep '^APP_BIND_HOST=' .env | head -1 | cut -d= -f2- || true)"
-if [[ -z "$current_bind" || "$current_bind" == "127.0.0.1" ]]; then
-  private_ip="$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{for (i=1; i<=NF; i++) if ($i=="src") { print $(i+1); exit }}')"
-  if [[ -n "$private_ip" ]]; then
-    set_env APP_BIND_HOST "$private_ip"
-    echo "Portal will listen on ${private_ip}:3000 for the NGINX server."
-  fi
-fi
+set_env APP_BIND_HOST "0.0.0.0"
+echo "Portal listens on every address, including localhost and this server's public IP, port ${APP_PORT:-3000}."
 
 while IFS= read -r line || [[ -n "$line" ]]; do
   line="${line%$'\r'}"
