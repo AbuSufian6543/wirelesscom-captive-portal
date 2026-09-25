@@ -74,5 +74,10 @@ fi
 
 echo "Building the captive portal. Ports 80 and 443 stay on the separate NGINX server."
 docker compose up -d --build
+
+if [[ -n "${SUDO_USER:-}" && "${SUDO_USER}" != "root" ]]; then
+  chown -R "${SUDO_USER}:${SUDO_USER}" .
+fi
+
 echo "Application is publishing ${APP_BIND_HOST:-127.0.0.1}:${APP_PORT:-3000}."
 echo "Point the NGINX proxy at that address. See docs/nginx.md."
