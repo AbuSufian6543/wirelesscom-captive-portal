@@ -1,7 +1,9 @@
 import { verifyPassword } from "@/server/authentication/password";
 import { checkRedirectUrl } from "@/server/shared/redirect";
+import { logError } from "@/server/shared/log";
 import type { AuthMethodName, ResolvedPortal } from "@/server/tenant/resolve";
 import type { AuthorizeOptions, UniFiProvider } from "@/server/unifi/types";
+import { postAuthRedirect } from "./success-url";
 
 export type GuestInput = {
   sessionId: string;
@@ -25,6 +27,7 @@ export type PendingSession = {
   expiresAt: Date | null;
   clientMac: string;
   apMac: string;
+  originalUrl: string;
   siteExternalId: string;
 };
 
@@ -83,11 +86,26 @@ export function evaluateVoucher(voucher: VoucherRecord, now: Date): { ok: true }
   return { ok: true };
 }
 
+export function resolveGuestMethod(portal: ResolvedPortal, input: GuestInput): AuthMethodName | null {
+  const enabled = portal.methods.filter((item) => item.enabled).map((item) => item.method);
+  if (!enabled.length) return null;
+  if (input.voucherCode.trim() && enabled.includes("VOUCHER")) return "VOUCHER";
+  if (input.password && enabled.includes("PASSWORD")) return "PASSWORD";
+  if (input.email.includes("@") && enabled.includes("EMAIL")) return "EMAIL";
+  const requested = input.method as AuthMethodName;
+  if (requested && enabled.includes(requested)) return requested;
+  if (enabled.includes("ACCEPT_TERMS")) return "ACCEPT_TERMS";
+  return enabled[0] ?? null;
+}
+
 export async function authenticateGuest(
   deps: GuestAuthDeps,
   input: GuestInput,
   ip: string,
-): Promise<{ ok: true; redirectUrl: string } | { ok: false; error: string; sessionId?: string }> {
+): Promise<
+  | { ok: true; redirectUrl: string; successUrl: string; companyName: string }
+  | { ok: false; error: string; sessionId?: string }
+> {
   const loaded = await deps.loadSession(input.sessionId);
   if (!loaded) return { ok: false, error: "This connection expired. Reconnect to Wi-Fi and try again." };
   const { session, portal } = loaded;
@@ -96,7 +114,11 @@ export async function authenticateGuest(
     return { ok: false, error: "This connection expired. Reconnect to Wi-Fi and try again.", sessionId: session.id };
   }
 
-  const method = input.method as AuthMethodName;
+  const method = resolveGuestMethod(portal, input);
+  if (!method) {
+    await fail(deps, session, portal, null, "method", ip, input.now);
+    return { ok: false, error: "Choose an available way to connect.", sessionId: session.id };
+  }
   const configured = portal.methods.find((item) => item.method === method && item.enabled);
   if (!configured) {
     await fail(deps, session, portal, method, "method", ip, input.now);
@@ -142,10 +164,10 @@ export async function authenticateGuest(
     name: input.name.trim(),
     email: input.email.trim().toLowerCase(),
     phone: input.phone.trim(),
-    termsVersion: input.acceptTerms ? portal.portal.termsVersion : "",
-    termsAcceptedAt: input.acceptTerms ? input.now : null,
-    privacyVersion: input.acceptPrivacy ? portal.portal.privacyVersion : "",
-    privacyAcceptedAt: input.acceptPrivacy ? input.now : null,
+    termsVersion: portal.portal.termsVersion,
+    termsAcceptedAt: input.now,
+    privacyVersion: portal.portal.privacyVersion,
+    privacyAcceptedAt: input.now,
     marketingConsentAt: input.marketingConsent ? input.now : null,
     now: input.now,
   });
@@ -155,32 +177,41 @@ export async function authenticateGuest(
     uploadKbps: portal.portal.uploadKbps,
     downloadKbps: portal.portal.downloadKbps,
     dataLimitMb: portal.portal.dataLimitMb,
+    apMac: session.apMac,
   };
   try {
     await deps.providerFor(portal).authorizeGuest(session.siteExternalId, session.clientMac, options);
-  } catch {
+  } catch (error) {
+    logError("unifi.authorize_failed", {
+      tenantId: portal.tenant.id,
+      sessionId: session.id,
+      siteExternalId: session.siteExternalId,
+      error: error instanceof Error ? error.message : "failed",
+    });
     await fail(deps, session, portal, method, "unifi", ip, input.now);
     return { ok: false, error: "We could not enable your connection. Please try again.", sessionId: session.id };
   }
 
+  const successUrl = postAuthRedirect(session.originalUrl, redirectUrl);
   await deps.markSession({
     sessionId: session.id,
     status: "AUTHENTICATED",
     method,
     guestClientId: guest.id,
     expiresAt: new Date(input.now.getTime() + minutes * 60 * 1000),
-    redirectUrl,
+    redirectUrl: successUrl || redirectUrl,
     now: input.now,
   });
   await deps.recordEvent({ tenantId: portal.tenant.id, sessionId: session.id, method, result: "SUCCESS", reason: "", ip });
-  return { ok: true, redirectUrl };
+  return { ok: true, redirectUrl, successUrl, companyName: portal.portal.companyName };
 }
 
 function requiredMissing(portal: ResolvedPortal, input: GuestInput, method: AuthMethodName): string | null {
   const p = portal.portal;
-  if (p.termsField === "REQUIRED" && !input.acceptTerms) return "Please accept the terms and conditions.";
-  if (p.privacyField === "REQUIRED" && !input.acceptPrivacy) return "Please accept the privacy policy.";
-  if ((p.emailField === "REQUIRED" || method === "EMAIL") && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.email)) return "Enter a valid email address.";
+  if (method === "EMAIL" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.email)) return "Enter a valid email address.";
+  if (p.emailField === "REQUIRED" && method !== "ACCEPT_TERMS" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.email)) {
+    return "Enter a valid email address.";
+  }
   if (p.nameField === "REQUIRED" && input.name.trim().length < 2) return "Enter your name.";
   if (p.phoneField === "REQUIRED" && input.phone.trim().length < 7) return "Enter your mobile number.";
   if (method === "VOUCHER" && input.voucherCode.trim().length < 4) return "Enter your voucher code.";

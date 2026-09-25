@@ -3,6 +3,7 @@ export type AuthorizeOptions = {
   uploadKbps?: number | null;
   downloadKbps?: number | null;
   dataLimitMb?: number | null;
+  apMac?: string;
 };
 
 export type UniFiSiteInfo = { id: string; name: string; externalId: string };

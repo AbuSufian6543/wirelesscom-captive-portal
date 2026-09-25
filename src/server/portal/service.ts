@@ -4,7 +4,7 @@ import { createUniFiProvider } from "@/server/unifi/factory";
 import { findPortalByApMac, viewFor } from "./directory";
 import { authenticateGuest, pendingDeadline, type GuestAuthDeps, type GuestInput } from "./authenticate";
 import { parseGuestQuery } from "./params";
-import { renderDocument, renderGuestPage, renderMessage } from "./render";
+import { renderDocument, renderGuestPage, renderMessage, renderConnected } from "./render";
 import { resolveTenantByAp } from "@/server/tenant/resolve";
 import { rateLimit } from "@/server/shared/rate-limit";
 
@@ -66,8 +66,8 @@ export async function submitGuestPortal(form: FormData, ip: string): Promise<Res
     name: String(form.get("name") ?? ""),
     email: String(form.get("email") ?? ""),
     phone: String(form.get("phone") ?? ""),
-    acceptTerms: form.get("acceptTerms") === "yes",
-    acceptPrivacy: form.get("acceptPrivacy") === "yes",
+    acceptTerms: true,
+    acceptPrivacy: true,
     marketingConsent: form.get("marketingConsent") === "yes",
     voucherCode: String(form.get("voucherCode") ?? ""),
     password: String(form.get("password") ?? ""),
@@ -87,8 +87,8 @@ export async function submitGuestPortal(form: FormData, ip: string): Promise<Res
     ipAddress: ip,
     metadata: { sessionId: input.sessionId },
   });
-  if (result.redirectUrl) return Response.redirect(result.redirectUrl, 302);
-  return htmlResponse(renderMessage("You're connected", "You can now use the internet. Open any website to continue."));
+  if (result.successUrl) return htmlResponse(renderConnected(result.companyName, result.successUrl));
+  return htmlResponse(renderConnected(result.companyName, result.redirectUrl || "/"));
 }
 
 function prismaGuestDeps(): GuestAuthDeps {
@@ -107,6 +107,7 @@ function prismaGuestDeps(): GuestAuthDeps {
           expiresAt: session.expiresAt,
           clientMac: session.clientMac,
           apMac: session.apMac,
+          originalUrl: session.originalUrl,
           siteExternalId: portal.site.externalId,
         },
         portal,

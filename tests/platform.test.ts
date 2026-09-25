@@ -4,7 +4,8 @@ import { checkRedirectUrl } from "@/server/shared/redirect";
 import { parseGuestQuery } from "@/server/portal/params";
 import { renderGuestPage } from "@/server/portal/render";
 import { resolveTenantByAp, type Directory, type ResolvedPortal } from "@/server/tenant/resolve";
-import { authenticateGuest, evaluateVoucher, pendingDeadline, type GuestAuthDeps, type VoucherRecord } from "@/server/portal/authenticate";
+import { authenticateGuest, evaluateVoucher, pendingDeadline, resolveGuestMethod, type GuestAuthDeps, type VoucherRecord } from "@/server/portal/authenticate";
+import { postAuthRedirect } from "@/server/portal/success-url";
 import { MockUniFiProvider } from "@/server/unifi/mock-provider";
 import { canAccessTenant, requireTenantAccess, requireSuperAdmin, type AuthUser } from "@/server/authentication/guards";
 import { completePasswordReset, requestPasswordReset, type ResetStore } from "@/server/authentication/reset";
@@ -158,6 +159,9 @@ describe("tenant resolution and three portals", () => {
       expect(html).toContain(expected);
       expect(html).not.toContain(forbidden);
       expect(html).not.toContain("<script");
+      expect(html).toContain("novalidate");
+      expect(html).toContain("By tapping");
+      expect(html).not.toContain('name="acceptTerms"');
     }
   });
 
@@ -183,6 +187,7 @@ describe("guest authorization", () => {
             expiresAt: null,
             clientMac: "e4:a7:a0:74:f9:b9",
             apMac: pinos.accessPoint.mac,
+            originalUrl: "http://www.msftconnecttest.com/redirect",
             siteExternalId: "default",
           },
           portal: pinos,
@@ -211,6 +216,8 @@ describe("guest authorization", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.redirectUrl).toBe("https://pinos.ca/");
+    expect(result.successUrl).toBe("http://www.msftconnecttest.com/redirect");
+    expect(result.companyName).toBe("Pinos");
     expect(provider.authorizations).toHaveLength(1);
     expect(provider.authorizations[0]?.mac).toBe("e4:a7:a0:74:f9:b9");
     expect(provider.authorizations[0]?.options.minutes).toBe(60);
@@ -232,6 +239,7 @@ describe("guest authorization", () => {
             expiresAt: null,
             clientMac: "e4:a7:a0:74:f9:b9",
             apMac: wireless.accessPoint.mac,
+            originalUrl: "",
             siteExternalId: "default",
           },
           portal: wireless,
@@ -248,6 +256,63 @@ describe("guest authorization", () => {
       sessionId: "old", method: "ACCEPT_TERMS", name: "", email: "", phone: "", acceptTerms: true, acceptPrivacy: true, marketingConsent: false, voucherCode: "", password: "", now: new Date(),
     }, "127.0.0.1");
     expect(result.ok).toBe(false);
+  });
+
+  it("treats tapping Join as consent and prefers the OS connectivity check", async () => {
+    const provider = new MockUniFiProvider();
+    const deps: GuestAuthDeps = {
+      async loadSession() {
+        return {
+          session: {
+            id: "sess",
+            tenantId: pinos.tenant.id,
+            status: "PENDING",
+            createdAt: new Date(),
+            expiresAt: null,
+            clientMac: "e4:a7:a0:74:f9:b9",
+            apMac: pinos.accessPoint.mac,
+            originalUrl: "http://www.msftconnecttest.com/redirect",
+            siteExternalId: "default",
+          },
+          portal: {
+            ...pinos,
+            portal: { ...pinos.portal, emailField: "REQUIRED" },
+            methods: [
+              { method: "ACCEPT_TERMS", enabled: true, sharedSecretHash: "", sortOrder: 0 },
+              { method: "EMAIL", enabled: true, sharedSecretHash: "", sortOrder: 1 },
+            ],
+          },
+        };
+      },
+      async findVoucher() { return null; },
+      async redeemVoucher() { return null; },
+      async saveGuest() { return { id: "guest" }; },
+      async markSession() { return undefined; },
+      async recordEvent() { return undefined; },
+      providerFor() { return provider; },
+    };
+    expect(resolveGuestMethod(pinos, {
+      sessionId: "sess", method: "", name: "", email: "", phone: "", acceptTerms: false, acceptPrivacy: false, marketingConsent: false, voucherCode: "", password: "", now: new Date(),
+    })).toBe("ACCEPT_TERMS");
+    const result = await authenticateGuest(deps, {
+      sessionId: "sess",
+      method: "",
+      name: "",
+      email: "",
+      phone: "",
+      acceptTerms: false,
+      acceptPrivacy: false,
+      marketingConsent: false,
+      voucherCode: "",
+      password: "",
+      now: new Date(),
+    }, "203.0.113.5");
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.successUrl).toBe("http://www.msftconnecttest.com/redirect");
+    expect(provider.authorizations).toHaveLength(1);
+    expect(postAuthRedirect("http://captive.apple.com/hotspot-detect.html", "https://pinos.ca/")).toContain("captive.apple.com");
+    expect(postAuthRedirect("", "https://pinos.ca/")).toBe("https://pinos.ca/");
   });
 });
 
@@ -266,7 +331,7 @@ describe("vouchers", () => {
     const deps: GuestAuthDeps = {
       async loadSession() {
         return {
-          session: { id: "sess", tenantId: pinos.tenant.id, status: "PENDING", createdAt: new Date(), expiresAt: null, clientMac: "11:22:33:44:55:66", apMac: pinos.accessPoint.mac, siteExternalId: "default" },
+          session: { id: "sess", tenantId: pinos.tenant.id, status: "PENDING", createdAt: new Date(), expiresAt: null, clientMac: "11:22:33:44:55:66", apMac: pinos.accessPoint.mac, originalUrl: "", siteExternalId: "default" },
           portal: { ...pinos, methods: [{ method: "VOUCHER", enabled: true, sharedSecretHash: "", sortOrder: 0 }] },
         };
       },

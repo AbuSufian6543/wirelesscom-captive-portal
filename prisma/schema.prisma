@@ -311,7 +311,7 @@ model PortalConfiguration {
   downloadKbps           Int?
   dataLimitMb            Int?
   nameField              FieldMode @default(OPTIONAL)
-  emailField             FieldMode @default(REQUIRED)
+  emailField             FieldMode @default(OPTIONAL)
   phoneField             FieldMode @default(HIDDEN)
   termsField             FieldMode @default(REQUIRED)
   privacyField           FieldMode @default(REQUIRED)

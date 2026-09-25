@@ -154,6 +154,19 @@ async function ensureTenant(input: {
 }) {
   const existing = await prisma.tenant.findUnique({ where: { slug: input.slug } });
   if (existing) {
+    await prisma.portalConfiguration.updateMany({
+      where: { tenantId: existing.id },
+      data: { emailField: "OPTIONAL" },
+    });
+    await prisma.authenticationMethod.updateMany({
+      where: { tenantId: existing.id, method: "EMAIL" },
+      data: { enabled: false },
+    });
+    await prisma.authenticationMethod.updateMany({
+      where: { tenantId: existing.id, method: "ACCEPT_TERMS" },
+      data: { enabled: true },
+    });
+    await applyUnifiEnv(existing.id);
     await syncDemoAccessPoint(existing.id, input);
     return;
   }
@@ -172,6 +185,7 @@ async function ensureTenant(input: {
       privacyText: input.privacy,
       supportText: input.support,
       redirectUrl: input.redirectUrl,
+      emailField: "OPTIONAL",
       primaryColor: input.primaryColor,
       accentColor: input.accentColor,
       backgroundColor: input.backgroundColor,
@@ -184,7 +198,7 @@ async function ensureTenant(input: {
   const methods: AuthMethod[] = ["ACCEPT_TERMS", "EMAIL", "VOUCHER", "PASSWORD"];
   for (const [index, method] of methods.entries()) {
     await prisma.authenticationMethod.create({
-      data: { tenantId: tenant.id, method, enabled: method === "ACCEPT_TERMS" || method === "EMAIL", sortOrder: index },
+      data: { tenantId: tenant.id, method, enabled: method === "ACCEPT_TERMS", sortOrder: index },
     });
   }
   const controller = await prisma.unifiController.create({
@@ -198,6 +212,26 @@ async function ensureTenant(input: {
     data: { tenantId: tenant.id, siteId: site.id, name: input.apName, mac: input.apMac },
   });
   await prisma.apSsid.create({ data: { accessPointId: ap.id, ssidId: ssid.id } });
+  await applyUnifiEnv(tenant.id);
+}
+
+async function applyUnifiEnv(tenantId: string) {
+  const url = (process.env.UNIFI_API_URL || "").trim();
+  const username = (process.env.UNIFI_API_USERNAME || "").trim();
+  const password = process.env.UNIFI_API_PASSWORD || "";
+  if (!url || !username || !password) return;
+  const style = process.env.UNIFI_API_STYLE === "CLASSIC" ? "CLASSIC" : "UNIFI_OS";
+  await prisma.unifiController.updateMany({
+    where: { tenantId },
+    data: {
+      mode: "REAL",
+      apiStyle: style,
+      baseUrl: url,
+      username,
+      passwordEncrypted: encryptSecret(password),
+      verifyTls: process.env.UNIFI_VERIFY_TLS === "true",
+    },
+  });
 }
 
 async function ensureAdmin() {

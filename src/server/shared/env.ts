@@ -19,6 +19,7 @@ const schema = z.object({
   UNIFI_API_USERNAME: z.string().default(""),
   UNIFI_API_PASSWORD: z.string().default(""),
   UNIFI_API_STYLE: z.enum(["UNIFI_OS", "CLASSIC"]).default("UNIFI_OS"),
+  UNIFI_VERIFY_TLS: z.enum(["true", "false"]).default("false"),
   SMTP_HOST: z.string().default(""),
   SMTP_PORT: z.coerce.number().int().positive().default(587),
   SMTP_USERNAME: z.string().default(""),

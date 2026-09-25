@@ -2,7 +2,7 @@ import { Agent, fetch as undiciFetch } from "undici";
 import { logError } from "@/server/shared/log";
 import type { AuthorizeOptions, UniFiClient, UniFiConnection, UniFiDevice, UniFiProvider, UniFiSiteInfo } from "./types";
 
-type Jar = { cookie: string; csrf: string };
+type Jar = { cookie: string; csrf: string; unifiOs: boolean };
 
 export class RealUniFiProvider implements UniFiProvider {
   private jar: Jar | null = null;
@@ -51,6 +51,7 @@ export class RealUniFiProvider implements UniFiProvider {
     if (options.uploadKbps) body.up = options.uploadKbps;
     if (options.downloadKbps) body.down = options.downloadKbps;
     if (options.dataLimitMb) body.bytes = options.dataLimitMb * 1024 * 1024;
+    if (options.apMac) body.ap_mac = options.apMac.toLowerCase();
     await this.postJson(this.apiPath(`/s/${siteExternalId}/cmd/stamgr`), body);
   }
 
@@ -76,25 +77,64 @@ export class RealUniFiProvider implements UniFiProvider {
 
   private apiPath(path: string): string {
     const base = this.connection.baseUrl.replace(/\/$/, "");
-    if (this.connection.apiStyle === "UNIFI_OS") return `${base}/proxy/network/api${path}`;
+    const unifiOs = this.jar?.unifiOs ?? this.connection.apiStyle === "UNIFI_OS";
+    if (unifiOs) return `${base}/proxy/network/api${path}`;
     return `${base}/api${path}`;
   }
 
   private async login(): Promise<Jar> {
     if (this.jar) return this.jar;
     const base = this.connection.baseUrl.replace(/\/$/, "");
-    const loginPath = this.connection.apiStyle === "UNIFI_OS" ? "/api/auth/login" : "/api/login";
-    const response = await this.fetch(`${base}${loginPath}`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ username: this.connection.username, password: this.connection.password }),
-    });
-    if (!response.ok) throw new Error("UniFi login failed");
-    const setCookie = response.headers.getSetCookie?.() ?? [];
-    const cookie = setCookie.map((part) => part.split(";")[0]).join("; ");
-    const csrf = cookie.match(/csrf_token=([^;]+)/i)?.[1] ?? response.headers.get("x-csrf-token") ?? "";
-    this.jar = { cookie, csrf };
-    return this.jar;
+    const preferred = this.connection.apiStyle === "CLASSIC"
+      ? [`${base}/api/login`, `${base}/api/auth/login`]
+      : [`${base}/api/auth/login`, `${base}/api/login`];
+    let lastError = "UniFi login failed";
+    for (const url of preferred) {
+      try {
+        const response = await this.fetch(url, {
+          method: "POST",
+          headers: { "content-type": "application/json", accept: "application/json" },
+          body: JSON.stringify({
+            username: this.connection.username,
+            password: this.connection.password,
+            remember: true,
+            rememberMe: true,
+          }),
+        });
+        const raw = await response.text();
+        if (!response.ok) {
+          lastError = `UniFi login failed (${response.status})`;
+          continue;
+        }
+        let parsed: Record<string, unknown> = {};
+        try {
+          parsed = raw ? (JSON.parse(raw) as Record<string, unknown>) : {};
+        } catch {
+          parsed = {};
+        }
+        const code = String(parsed.code ?? "");
+        if (code.startsWith("AUTHENTICATION_FAILED")) {
+          lastError = "UniFi login failed (invalid credentials)";
+          continue;
+        }
+        const setCookie = response.headers.getSetCookie?.() ?? [];
+        const cookie = setCookie.map((part) => part.split(";")[0]).join("; ");
+        if (!cookie) {
+          lastError = "UniFi login failed (no session cookie)";
+          continue;
+        }
+        const csrf =
+          String(parsed.csrfToken ?? parsed.csrf_token ?? "") ||
+          cookie.match(/csrf_token=([^;]+)/i)?.[1] ||
+          response.headers.get("x-csrf-token") ||
+          "";
+        this.jar = { cookie, csrf, unifiOs: url.includes("/api/auth/login") };
+        return this.jar;
+      } catch (error) {
+        lastError = error instanceof Error ? error.message : "UniFi login failed";
+      }
+    }
+    throw new Error(lastError);
   }
 
   private async getJson<T>(url: string): Promise<T> {
@@ -106,19 +146,38 @@ export class RealUniFiProvider implements UniFiProvider {
     await this.postOrGet(url, "POST", body);
   }
 
-  private async postOrGet(url: string, method: "GET" | "POST", body?: unknown): Promise<{ data?: unknown }> {
+  private async postOrGet(url: string, method: "GET" | "POST", body?: unknown, retried = false): Promise<{ data?: unknown; meta?: { rc?: string; msg?: string } }> {
     const jar = await this.login();
     const headers: Record<string, string> = { cookie: jar.cookie, accept: "application/json" };
-    if (jar.csrf) headers["x-csrf-token"] = jar.csrf;
+    if (jar.csrf) {
+      headers["x-csrf-token"] = jar.csrf;
+      headers["X-CSRF-Token"] = jar.csrf;
+    }
     if (body) headers["content-type"] = "application/json";
     const response = await this.fetch(url, { method, headers, body: body ? JSON.stringify(body) : undefined });
-    if (!response.ok) throw new Error("UniFi API request failed");
-    return (await response.json()) as { data?: unknown };
+    const raw = await response.text();
+    if (response.status === 401 && !retried) {
+      this.jar = null;
+      return this.postOrGet(url, method, body, true);
+    }
+    if (!response.ok) {
+      throw new Error(`UniFi API ${method} failed (${response.status})`);
+    }
+    let payload: { data?: unknown; meta?: { rc?: string; msg?: string } } = {};
+    try {
+      payload = raw ? (JSON.parse(raw) as { data?: unknown; meta?: { rc?: string; msg?: string } }) : {};
+    } catch {
+      payload = {};
+    }
+    if (payload.meta?.rc && payload.meta.rc !== "ok") {
+      throw new Error(payload.meta.msg || "UniFi API request failed");
+    }
+    return payload;
   }
 
   private fetch(url: string, init: { method: string; headers: Record<string, string>; body?: string }) {
     const dispatcher = new Agent({ connect: { rejectUnauthorized: this.connection.verifyTls } });
-    return undiciFetch(url, { ...init, dispatcher, signal: AbortSignal.timeout(10000) });
+    return undiciFetch(url, { ...init, dispatcher, signal: AbortSignal.timeout(20000) });
   }
 }
 
