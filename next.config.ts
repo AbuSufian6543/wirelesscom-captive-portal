@@ -3,6 +3,7 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   reactStrictMode: true,
+  skipTrailingSlashRedirect: true,
   serverExternalPackages: ["argon2", "@prisma/client", "prisma", "nodemailer", "undici"],
   async headers() {
     return [
