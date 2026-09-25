@@ -1,0 +1,553 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum TenantKind {
+  PLATFORM_OWNER
+  CUSTOMER
+}
+
+enum TenantStatus {
+  ACTIVE
+  SUSPENDED
+  ARCHIVED
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+enum FieldMode {
+  HIDDEN
+  OPTIONAL
+  REQUIRED
+}
+
+enum AuthMethod {
+  ACCEPT_TERMS
+  EMAIL
+  VOUCHER
+  PASSWORD
+}
+
+enum GuestSessionStatus {
+  PENDING
+  AUTHENTICATED
+  EXPIRED
+  REVOKED
+  FAILED
+}
+
+enum VoucherStatus {
+  ACTIVE
+  EXPIRED
+  REVOKED
+  EXHAUSTED
+}
+
+enum CampaignStatus {
+  DRAFT
+  SENDING
+  SENT
+  FAILED
+  CANCELLED
+}
+
+enum CampaignChannel {
+  EMAIL
+  SMS
+}
+
+enum UnifiMode {
+  MOCK
+  REAL
+}
+
+enum UnifiApiStyle {
+  UNIFI_OS
+  CLASSIC
+}
+
+enum SmtpEncryption {
+  NONE
+  STARTTLS
+  TLS
+}
+
+enum AuditResult {
+  SUCCESS
+  FAILURE
+}
+
+model User {
+  id                 String    @id @default(cuid())
+  email              String    @unique
+  name               String
+  passwordHash       String
+  mustChangePassword Boolean   @default(true)
+  hasAllTenants      Boolean   @default(false)
+  status             UserStatus @default(ACTIVE)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  roles              UserRole[]
+  tenants            UserTenant[]
+  sessions           AdminSession[]
+  resetTokens        PasswordResetToken[]
+  auditLogs          AuditLog[] @relation("AuditActor")
+}
+
+model Role {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  name        String
+  description String
+  isSystem    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  permissions RolePermission[]
+  users       UserRole[]
+}
+
+model Permission {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  description String
+  roles       RolePermission[]
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+}
+
+model UserRole {
+  userId String
+  roleId String
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role   Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+}
+
+model UserTenant {
+  userId   String
+  tenantId String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@id([userId, tenantId])
+  @@index([tenantId])
+}
+
+model AdminSession {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Tenant {
+  id          String       @id @default(cuid())
+  slug        String       @unique
+  name        String
+  kind        TenantKind
+  status      TenantStatus @default(ACTIVE)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  users       UserTenant[]
+  controllers UnifiController[]
+  sites       UnifiSite[]
+  ssids       UnifiSsid[]
+  accessPoints UnifiAccessPoint[]
+  portal      PortalConfiguration?
+  authMethods AuthenticationMethod[]
+  guests      GuestClient[]
+  sessions    GuestSession[]
+  authEvents  GuestAuthenticationEvent[]
+  vouchers    Voucher[]
+  analytics   AnalyticsEvent[]
+  smtp        SmtpConfiguration?
+  messaging   MessageApiConfiguration?
+  emailCampaigns EmailCampaign[]
+  smsCampaigns   SmsCampaign[]
+  auditLogs   AuditLog[]
+}
+
+model UnifiController {
+  id                String        @id @default(cuid())
+  tenantId          String
+  name              String
+  mode              UnifiMode     @default(MOCK)
+  apiStyle          UnifiApiStyle @default(UNIFI_OS)
+  baseUrl           String        @default("")
+  username          String        @default("")
+  passwordEncrypted String        @default("")
+  verifyTls         Boolean       @default(true)
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  tenant            Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  sites             UnifiSite[]
+
+  @@index([tenantId])
+}
+
+model UnifiSite {
+  id         String   @id @default(cuid())
+  tenantId   String
+  controllerId String
+  name       String
+  externalId String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  controller UnifiController @relation(fields: [controllerId], references: [id], onDelete: Cascade)
+  ssids      UnifiSsid[]
+  accessPoints UnifiAccessPoint[]
+  sessions   GuestSession[]
+
+  @@unique([controllerId, externalId])
+  @@index([tenantId])
+}
+
+model UnifiSsid {
+  id        String   @id @default(cuid())
+  tenantId  String
+  siteId    String
+  name      String
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  site      UnifiSite @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  accessPoints ApSsid[]
+
+  @@unique([siteId, name])
+  @@index([tenantId])
+}
+
+model UnifiAccessPoint {
+  id        String   @id @default(cuid())
+  tenantId  String
+  siteId    String
+  name      String
+  mac       String   @unique
+  model     String   @default("")
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  site      UnifiSite @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  ssids     ApSsid[]
+  sessions  GuestSession[]
+
+  @@index([tenantId])
+  @@index([siteId])
+}
+
+model ApSsid {
+  accessPointId String
+  ssidId        String
+  accessPoint   UnifiAccessPoint @relation(fields: [accessPointId], references: [id], onDelete: Cascade)
+  ssid          UnifiSsid        @relation(fields: [ssidId], references: [id], onDelete: Cascade)
+
+  @@id([accessPointId, ssidId])
+}
+
+model PortalConfiguration {
+  id                     String    @id @default(cuid())
+  tenantId               String    @unique
+  companyName            String
+  logoPath               String    @default("")
+  faviconPath            String    @default("")
+  backgroundPath         String    @default("")
+  primaryColor           String    @default("#0B1F33")
+  accentColor            String    @default("#C4A35A")
+  backgroundColor        String    @default("#0B1F33")
+  textColor              String    @default("#102033")
+  mutedColor             String    @default("#526277")
+  cardColor              String    @default("#FFFFFF")
+  buttonColor            String    @default("#0B1F33")
+  buttonTextColor        String    @default("#FFFFFF")
+  welcomeTitle           String
+  welcomeMessage         String
+  description            String    @default("")
+  buttonText             String    @default("Connect")
+  footerText             String    @default("")
+  termsText              String
+  termsVersion           String    @default("1.0")
+  privacyText            String
+  privacyVersion         String    @default("1.0")
+  supportText            String    @default("")
+  sessionDurationMinutes Int       @default(480)
+  redirectUrl            String    @default("")
+  uploadKbps             Int?
+  downloadKbps           Int?
+  dataLimitMb            Int?
+  nameField              FieldMode @default(OPTIONAL)
+  emailField             FieldMode @default(REQUIRED)
+  phoneField             FieldMode @default(HIDDEN)
+  termsField             FieldMode @default(REQUIRED)
+  privacyField           FieldMode @default(REQUIRED)
+  marketingField         FieldMode @default(OPTIONAL)
+  updatedAt              DateTime  @updatedAt
+  tenant                 Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+model AuthenticationMethod {
+  id               String     @id @default(cuid())
+  tenantId         String
+  method           AuthMethod
+  enabled          Boolean    @default(false)
+  sortOrder        Int        @default(0)
+  sharedSecretHash String     @default("")
+  tenant           Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, method])
+}
+
+model GuestClient {
+  id                   String    @id @default(cuid())
+  tenantId             String
+  mac                  String
+  name                 String    @default("")
+  email                String    @default("")
+  phone                String    @default("")
+  termsVersion         String    @default("")
+  termsAcceptedAt      DateTime?
+  privacyVersion       String    @default("")
+  privacyAcceptedAt    DateTime?
+  marketingConsentAt   DateTime?
+  emailUnsubscribedAt  DateTime?
+  smsUnsubscribedAt    DateTime?
+  firstSeenAt          DateTime  @default(now())
+  lastSeenAt           DateTime  @default(now())
+  tenant               Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  sessions             GuestSession[]
+  redemptions          VoucherRedemption[]
+
+  @@unique([tenantId, mac])
+  @@index([tenantId, email])
+}
+
+model GuestSession {
+  id              String             @id @default(cuid())
+  tenantId        String
+  siteId          String?
+  accessPointId   String?
+  guestClientId   String?
+  apMac           String
+  clientMac       String
+  ssid            String             @default("")
+  requestSiteKey  String             @default("")
+  method          AuthMethod?
+  status          GuestSessionStatus @default(PENDING)
+  originalUrl     String             @default("")
+  redirectUrl     String             @default("")
+  authenticatedAt DateTime?
+  expiresAt       DateTime?
+  failureReason   String             @default("")
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  tenant          Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  site            UnifiSite?         @relation(fields: [siteId], references: [id], onDelete: SetNull)
+  accessPoint     UnifiAccessPoint?  @relation(fields: [accessPointId], references: [id], onDelete: SetNull)
+  guestClient     GuestClient?       @relation(fields: [guestClientId], references: [id], onDelete: SetNull)
+  events          GuestAuthenticationEvent[]
+  redemptions     VoucherRedemption[]
+
+  @@index([tenantId, status])
+  @@index([tenantId, createdAt])
+  @@index([clientMac])
+}
+
+model GuestAuthenticationEvent {
+  id        String    @id @default(cuid())
+  tenantId  String
+  sessionId String
+  method    AuthMethod?
+  result    AuditResult
+  reason    String    @default("")
+  ipAddress String    @default("")
+  createdAt DateTime  @default(now())
+  tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  session   GuestSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, createdAt])
+}
+
+model Voucher {
+  id                     String        @id @default(cuid())
+  tenantId               String
+  code                   String
+  expiresAt              DateTime?
+  maxUses                Int           @default(1)
+  useCount               Int           @default(0)
+  sessionDurationMinutes Int           @default(480)
+  status                 VoucherStatus @default(ACTIVE)
+  note                   String        @default("")
+  createdAt              DateTime      @default(now())
+  tenant                 Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  redemptions            VoucherRedemption[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+}
+
+model VoucherRedemption {
+  id            String   @id @default(cuid())
+  voucherId     String
+  sessionId     String
+  guestClientId String?
+  redeemedAt    DateTime @default(now())
+  voucher       Voucher  @relation(fields: [voucherId], references: [id], onDelete: Cascade)
+  session       GuestSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  guestClient   GuestClient? @relation(fields: [guestClientId], references: [id], onDelete: SetNull)
+
+  @@index([voucherId])
+}
+
+model SmtpConfiguration {
+  id                String          @id @default(cuid())
+  tenantId          String?         @unique
+  host              String
+  port              Int
+  username          String          @default("")
+  passwordEncrypted String          @default("")
+  encryption        SmtpEncryption  @default(STARTTLS)
+  fromEmail         String
+  fromName          String
+  updatedAt         DateTime        @updatedAt
+  tenant            Tenant?         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+model MessageApiConfiguration {
+  id              String   @id @default(cuid())
+  tenantId        String?  @unique
+  apiUrl          String
+  apiKeyEncrypted String   @default("")
+  apiSecretEncrypted String @default("")
+  senderId        String   @default("")
+  extraJson       String   @default("{}")
+  updatedAt       DateTime @updatedAt
+  tenant          Tenant?  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+model EmailCampaign {
+  id        String         @id @default(cuid())
+  tenantId  String
+  name      String
+  subject   String
+  bodyText  String
+  status    CampaignStatus @default(DRAFT)
+  createdBy String?
+  sentAt    DateTime?
+  createdAt DateTime       @default(now())
+  tenant    Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  recipients EmailRecipient[]
+
+  @@index([tenantId])
+}
+
+model EmailRecipient {
+  id         String         @id @default(cuid())
+  campaignId String
+  guestClientId String?
+  email      String
+  status     String         @default("PENDING")
+  error      String         @default("")
+  campaign   EmailCampaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@index([campaignId])
+}
+
+model SmsCampaign {
+  id        String         @id @default(cuid())
+  tenantId  String
+  name      String
+  bodyText  String
+  status    CampaignStatus @default(DRAFT)
+  createdBy String?
+  sentAt    DateTime?
+  createdAt DateTime       @default(now())
+  tenant    Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  recipients SmsRecipient[]
+
+  @@index([tenantId])
+}
+
+model SmsRecipient {
+  id         String      @id @default(cuid())
+  campaignId String
+  guestClientId String?
+  phone      String
+  status     String      @default("PENDING")
+  error      String      @default("")
+  campaign   SmsCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@index([campaignId])
+}
+
+model AnalyticsEvent {
+  id        String   @id @default(cuid())
+  tenantId  String
+  type      String
+  apMac     String   @default("")
+  ssid      String   @default("")
+  sessionId String?
+  createdAt DateTime @default(now())
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, createdAt])
+  @@index([tenantId, type])
+}
+
+model AuditLog {
+  id         String      @id @default(cuid())
+  actorId    String?
+  tenantId   String?
+  action     String
+  result     AuditResult
+  ipAddress  String      @default("")
+  userAgent  String      @default("")
+  metadata   Json?
+  createdAt  DateTime    @default(now())
+  actor      User?       @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+  tenant     Tenant?     @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, createdAt])
+  @@index([action, createdAt])
+}
+
+model SystemSetting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+}
