@@ -62,10 +62,16 @@ if [[ -z "$current_bind" || "$current_bind" == "127.0.0.1" ]]; then
   fi
 fi
 
-set -a
-# shellcheck disable=SC1091
-source .env
-set +a
+while IFS= read -r line || [[ -n "$line" ]]; do
+  line="${line%$'\r'}"
+  [[ -z "$line" || "$line" =~ ^[[:space:]]*# ]] && continue
+  key="${line%%=*}"
+  value="${line#*=}"
+  if [[ "$value" == \"*\" && "$value" == *\" ]]; then
+    value="${value:1:${#value}-2}"
+  fi
+  export "${key}=${value}"
+done < .env
 
 if [[ -z "${INITIAL_ADMIN_PASSWORD:-}" || ${#INITIAL_ADMIN_PASSWORD} -lt 12 ]]; then
   echo "INITIAL_ADMIN_PASSWORD must be at least 12 characters."
